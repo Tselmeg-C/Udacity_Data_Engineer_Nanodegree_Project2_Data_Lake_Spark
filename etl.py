@@ -3,7 +3,8 @@ from datetime import datetime
 import os
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import udf, col
-from pyspark.sql.functions import year, month, dayofmonth, hour, weekofyear, date_format
+from pyspark.sql.functions import year, month, dayofmonth, dayofweek,hour, weekofyear, date_format, monotonically_increasing_id
+from pyspark.sql.types import TimestampType, DateType
 
 
 config = configparser.ConfigParser()
@@ -48,11 +49,11 @@ def process_song_data(spark, input_data, output_data):
 
 
     # extract columns to create artists table with columns artist_id, name, location, lattitude, longitude
-    artists_table = df.select('artist_id','artist_name','artist_location','artist_lattitude','artist_longitude')\
-                    .withColumnRenamed('artist_name','name')\
-                    .withColumnRenamed('artist_location','location')\
-                    .withColumnRenamed('artist_lattitude','lattitude')\
-                    .withColumnRenamed('artist_longitude','longitude')\
+    artists_table = df.select('artist_id','artist_name','artist_location','artist_latitude','artist_longitude') \
+                    .withColumnRenamed('artist_name','name') \
+                    .withColumnRenamed('artist_location','location') \
+                    .withColumnRenamed('artist_latitude','latitude') \
+                    .withColumnRenamed('artist_longitude','longitude') \
                     .dropDuplicates()
     
     # write artists table to parquet files
@@ -102,13 +103,13 @@ def process_log_data(spark, input_data, output_data):
 
     
     # extract columns to create time table with columns start_time, hour, day, week, month, year, weekday
-    df = df.withColumn('hour',hour('timestamp'))\
-           .withColumn('day',dayofmonth('timestamp'))\
-           .withColumn('week',weekofyear('timestamp'))\
-           .withColumn('month', month('timestamp'))\
-           .withColumn('year',year('timestamp'))\
-           .withColumn('weekday',dayofweek('timestamp'))\
-           .dropDuplicates()
+    df = df.withColumn('hour',hour('timestamp')) \
+                 .withColumn('day',dayofmonth('timestamp')) \
+                 .withColumn('week',weekofyear('timestamp')) \
+                 .withColumn('month', month('timestamp')) \
+                 .withColumn('year',year('timestamp')) \
+                 .withColumn('weekday',dayofweek('timestamp')) \
+                 .dropDuplicates()
     
     time_table = df.select('start_time','hour','day','week','month','year','weekday').dropDuplicates()
     
@@ -120,14 +121,14 @@ def process_log_data(spark, input_data, output_data):
 
     # extract columns from joined song and log datasets to create songplays table with columns songplay_id (serial number to be created), start_time(log_data), user_id(log_data), level(log_data), song_id(song_data), artist_id(song_data), session_id(log_data), location(log_data), user_agent(log_data)
     
-    songplays_table = df.join(df_song, df_song.artist_id == df.artist, "inner")\
-                        .distinct()\
-                        .select(col('start_time'), col('userId'), col('level'), col('sessionId'),col('year'),\
-                                col('month'),col('location'), col('userAgent'), col('song_id'), col('artist_id'))\
-                        .withColumn("songplay_id", monotonically_increasing_id()\
-                        .withColumnRenamed('userId','user_id')\
-                        .withColumnRenamed('sessionId','session_id')\
-                        .withColumnRenamed('userAgent','user_agent')
+    songplays_table = df.join(df_song, df.artist == df_song.artist_name, "left") \
+                    .distinct() \
+                    .select(col('start_time'), col('userId'), col('level'), col('sessionId'), \
+                                       col('year'),col('month'),col('location'), col('userAgent'), col('song_id'), col('artist_id'))\
+                    .withColumn('songplay_id', monotonically_increasing_id()) \
+                    .withColumnRenamed('userId','user_id') \
+                    .withColumnRenamed('sessionId','session_id') \
+                    .withColumnRenamed('userAgent','user_agent')
 
     # write songplays table to parquet files partitioned by year and month
     songplays_table.write.partitionBy('year','month').parquet(output_data + 'songplays/')
