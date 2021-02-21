@@ -33,10 +33,8 @@ def process_song_data(spark, input_data, output_data):
     """
 
     # get filepath to song data file
-    #song_data = input_data + 'song_data/*/*/*/*.json'
-    song_data = 'data/song_data/*/*/*/*.json'
-    print(song_data)
-    
+    song_data = input_data + 'song_data/*/*/*/*.json'
+        
     # read song data file
     df = spark.read.json(song_data)
     df.createOrReplaceTempView('df_song')
@@ -46,7 +44,6 @@ def process_song_data(spark, input_data, output_data):
     
     # write songs table to parquet files partitioned by year and artist      
     songs_table.write.partitionBy('year','artist_id').parquet(output_data + 'songs/')
-
 
     # extract columns to create artists table with columns artist_id, name, location, lattitude, longitude
     artists_table = df.select('artist_id','artist_name','artist_location','artist_latitude','artist_longitude') \
@@ -72,10 +69,8 @@ def process_log_data(spark, input_data, output_data):
     """
     
     # get filepath to log data file
-    #log_data = input_data + 'log_data'
-    log_data = 'data/*.json'
-    print(log_data)
-
+    log_data = input_data + 'log_data/*/*/*.json'
+    
     # read log data file
     df = spark.read.json(log_data)
     
@@ -121,7 +116,7 @@ def process_log_data(spark, input_data, output_data):
 
     # extract columns from joined song and log datasets to create songplays table with columns songplay_id (serial number to be created), start_time(log_data), user_id(log_data), level(log_data), song_id(song_data), artist_id(song_data), session_id(log_data), location(log_data), user_agent(log_data)
     
-    songplays_table = df.join(df_song, df.artist == df_song.artist_name, "left") \
+    songplays_table = df.join(df_song, df.artist == df_song.artist_name, 'left') \
                     .distinct() \
                     .select(col('start_time'), col('userId'), col('level'), col('sessionId'), \
                                        col('year'),col('month'),col('location'), col('userAgent'), col('song_id'), col('artist_id'))\
